@@ -43,13 +43,13 @@ read_or_prompt_for_config(const Str & config_file_path)
     if (config.iso_folder_path.empty()) 
     {
         std::cout << "Enter the path to the ISO folder: ";
-        std::getline(std::cin, config.iso_folder_path);
+        std::cin >> config.iso_folder_path;
     }
 
     if (config.disk_folder_path.empty()) 
     {
         std::cout << "Enter the path to the disk folder: ";
-        std::getline(std::cin, config.disk_folder_path);
+        std::cin >> config.disk_folder_path;
     }
 
     std::ofstream out_config_file(config_file_path);
