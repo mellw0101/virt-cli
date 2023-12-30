@@ -259,7 +259,6 @@ start_vm()
 
     Vec<Str> qemu_args = 
     {
-        "qemu-system-x86_64",
         "--enable-kvm",
         "-name " + name,
         "-drive file=" + config.disk_folder_path + "/" + name + ",format=qcow2",
@@ -278,7 +277,7 @@ start_vm()
     launchQemuVM(qemu_args);
 }
 
-struct MenuOption 
+struct MenuOption
 {
     std::string name;
     std::function<void()> action;
