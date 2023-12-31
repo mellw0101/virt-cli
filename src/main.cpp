@@ -228,13 +228,9 @@ prompt_for_vm_name()
 }
 
 void
-start_vm()
+start_vm(const Str & name)
 {
     conf config = read_or_prompt_for_config("virt-cli.conf");
-    std::cout << "Enter the name of the VM: ";
-    Str name;
-    std::cin >> name;
-
     Str boot_order;
     while (true) 
     {    
@@ -334,7 +330,7 @@ Vec<MenuOption> vm_menu =
     {
         "Start VM", []() 
         {
-            start_vm();
+            start_vm(prompt_for_vm_name());
         }
     },
     {
