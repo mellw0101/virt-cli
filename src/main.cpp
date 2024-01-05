@@ -266,7 +266,7 @@ start_vm(const Str & name)
         "-boot " + boot_order,
         "-drive file=/usr/share/edk2/x64/OVMF_CODE.fd,if=pflash,format=raw,unit=0,readonly=on",
         "-vnc :0",
-        "-vnc 192.168.0.14:0,225588",
+        "-vnc 192.168.0.14:0",
         "-vnc 0.0.0.0:14" 
     };
 
