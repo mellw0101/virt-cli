@@ -6,25 +6,26 @@
 #include <curl/curl.h>
 #include <fstream>
 #include <iostream>
+#include <libtorrent/session.hpp>
+#include <libtorrent/add_torrent_params.hpp>
+#include <libtorrent/torrent_info.hpp>
+#include <libtorrent/magnet_uri.hpp>
+#include <chrono>
+#include <libtorrent/torrent_status.hpp>
+#include <thread>
 
 
 template<typename T>
 using Vec = std::vector<T>;
-
 using Str = std::string;
-
 const Str USER = getenv("USER");
-
 const Str config_file_path = "/home/" + USER + "/.config/virt-cli.conf";
-
 struct conf 
 {
     Str iso_folder_path;
     Str disk_folder_path;
 };
-
-conf 
-read_or_prompt_for_config(const Str & config_file_path) 
+conf read_or_prompt_for_config(const Str & config_file_path) 
 {
     conf config;
     std::ifstream config_file(config_file_path);
@@ -57,22 +58,18 @@ read_or_prompt_for_config(const Str & config_file_path)
 
     return config;
 }
-
-size_t 
-write_data(void * ptr, size_t size, size_t nmemb, FILE * stream) 
+size_t write_data(void * ptr, size_t size, size_t nmemb, FILE * stream) 
 {
     size_t written = fwrite(ptr, size, nmemb, stream);
     return written;
 }
-
 enum class OS 
 {
     ubuntu,
     debian,
+    arch
 };
-
-bool 
-is_url_active(const Str & url) 
+bool is_url_active(const Str & url) 
 {
     CURL* curl;
     CURLcode res;
@@ -88,16 +85,13 @@ is_url_active(const Str & url)
     }
     return false;
 }
-
 Vec<Str> debian_iso_urls = 
 {
     "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-12.4.0-amd64-netinst.iso",
     "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-10.9.0-amd64-netinst.iso",
     "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-10.9.0-amd64-netinst.iso",
 };
-
-Str
-check_iso_urls(const Vec<Str> & iso_urls) 
+Str check_iso_urls(const Vec<Str> & iso_urls) 
 {
     for (const Str & url : iso_urls) 
     {
@@ -112,26 +106,20 @@ check_iso_urls(const Vec<Str> & iso_urls)
     }
     return "";
 }
-
-Str 
-fetch_iso_url(OS os) 
+Str fetch_iso_url(OS os) 
 {
     switch (os) 
     {
         case OS::ubuntu:
-        {
             break;
-        }
         case OS::debian:
-        {
             return check_iso_urls(debian_iso_urls);
-        }
+        case OS::arch:
+            break;
     }
     return "";
 }
-
-void 
-download_iso(const Str & url, const Str & output_file_path) 
+void download_iso(const Str & url, const Str & output_file_path) 
 {
     CURL* curl;
     FILE* fp;
@@ -153,7 +141,31 @@ download_iso(const Str & url, const Str & output_file_path)
         fclose(fp);
     }
 }
+int download_iso_torrent(std::string magnet_link)
+{
+    lt::session s;
+    lt::add_torrent_params p;
+    lt::error_code ec;
+    lt::parse_magnet_uri(magnet_link, p, ec);
+    if (ec)
+    {
+        std::cerr << "Error: " << ec.message() << std::endl;
+        return 1;
+    }
 
+    p.save_path = "./";
+    lt::torrent_handle h = s.add_torrent(p);
+
+    while (!h.status().is_seeding)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::cout << "Progress: " << h.status().progress * 100 << "%" << std::endl;
+    }
+
+    std::cout << "Download completed" << std::endl;
+
+    return 0;
+}
 Vec<Str> qemu_args = 
 {
     "qemu-system-x86_64",
@@ -171,9 +183,7 @@ Vec<Str> qemu_args =
     "-vnc 192.168.0.14:0",
     "-vnc 0.0.0.0:14" 
 };
-
-void 
-launchQemuVM(const Vec<Str> & args) 
+void launchQemuVM(const Vec<Str> & args) 
 {
     std::ostringstream cmd;
     cmd << "qemu-system-x86_64 ";
@@ -185,9 +195,7 @@ launchQemuVM(const Vec<Str> & args)
 
     std::system(cmd.str().c_str());
 }
-
-void 
-create_qcow2_disk(const std::string& disk_path, int size_gb) 
+void create_qcow2_disk(const std::string& disk_path, int size_gb) 
 {
     std::string command = "qemu-img create -f qcow2 " + disk_path + " " + std::to_string(size_gb) + "G";
     int result = std::system(command.c_str());
@@ -196,15 +204,13 @@ create_qcow2_disk(const std::string& disk_path, int size_gb)
         std::cerr << "Failed to create disk image\n";
     }
 }
-
-void
-create_vm(const Str & name, OS os)
+void create_vm(const Str & name, OS os)
 {
     conf config = read_or_prompt_for_config("virt-cli.conf");
     Str iso_url = fetch_iso_url(os);
     if (iso_url.empty()) 
     {
-        std::cout << "No valid ISO URL found. Aborting.\n";
+        std::cerr << "No valid ISO URL found. Aborting." << std::endl;
         return;
     }
     std::system(("mkdir -p " + config.iso_folder_path).c_str());
@@ -217,18 +223,27 @@ create_vm(const Str & name, OS os)
     std::system(("mkdir -p " + config.disk_folder_path).c_str());
     create_qcow2_disk(config.disk_folder_path + "/" + name, size_gb);
 }
+void create_arch_vm(const Str & name, OS os)
+{
+    conf config = read_or_prompt_for_config("virt-cli.conf");
+    std::system(("mkdir -p " + config.iso_folder_path).c_str());
+    int status = download_iso_torrent("magnet:?xt=urn:btih:1447bb03de993e1ee7e430526ff1fbac0daf7b44&dn=archlinux-2024.01.01-x86_64.iso");
 
-Str
-prompt_for_vm_name() 
+    int size_gb;
+    std::cout << "Enter the size of the disk image in GB: ";
+    std::cin >> size_gb;
+
+    std::system(("mkdir -p " + config.disk_folder_path).c_str());
+    create_qcow2_disk(config.disk_folder_path + "/" + name, size_gb);
+}
+Str prompt_for_vm_name() 
 {
     Str name;
     std::cout << "Enter the name of the VM: ";
     std::cin >> name;
     return name;
 }
-
-void
-start_vm(const Str & name)
+void start_vm(const Str & name)
 {
     conf config = read_or_prompt_for_config("virt-cli.conf");
     Str boot_order;
@@ -272,15 +287,12 @@ start_vm(const Str & name)
 
     launchQemuVM(qemu_args);
 }
-
 struct MenuOption
 {
     std::string name;
     std::function<void()> action;
 };
-
-void 
-display_menu(const Vec<MenuOption>& options)
+void display_menu(const Vec<MenuOption>& options)
 {
     while (true) 
     {
@@ -308,51 +320,40 @@ display_menu(const Vec<MenuOption>& options)
         }
     }
 }
-
 Vec<MenuOption> new_vm = 
 {
+    {"debian", []() 
     {
-        "debian", []() 
-        {
-            create_vm(prompt_for_vm_name(), OS::debian);
-        }
-    },
+        create_vm(prompt_for_vm_name(), OS::debian);
+    }},
+    {"ubuntu", []() 
+    { 
+        std::cout << "You chose sub-option 2.\n"; 
+    }},
+    {"arch_linux", []()
     {
-        "ubuntu", []() 
-        { 
-            std::cout << "You chose sub-option 2.\n"; 
-        }
-    },
+        create_arch_vm(prompt_for_vm_name(), OS::arch);
+    }}
 };
-
 Vec<MenuOption> vm_menu = 
 {
+    {"Start VM", []() 
     {
-        "Start VM", []() 
-        {
-            start_vm(prompt_for_vm_name());
-        }
-    },
+        start_vm(prompt_for_vm_name());
+    }},
+    {"Stop VM", []() 
     {
-        "Stop VM", []() 
-        {
-            std::cout << "You chose sub-option 2.\n";
-        }
-    },
+        std::cout << "You chose sub-option 2.\n";
+    }},
+    {"Delete VM", []() 
     {
-        "Delete VM", []() 
-        {
-            std::cout << "You chose sub-option 3.\n";
-        }
-    },
+        std::cout << "You chose sub-option 3.\n";
+    }},
+    {"New VM", []() 
     {
-        "New VM", []() 
-        {
-            display_menu(new_vm);
-        }
-    },
+        display_menu(new_vm);
+    }},
 };
-
 Vec<MenuOption> disk_menu = 
 {
     {
@@ -378,35 +379,24 @@ Vec<MenuOption> disk_menu =
         }
     },
 };
-
 Vec<MenuOption> main_menu = 
 {
+    {"check config", []() 
     {
-        "check config", []() 
-        {
-            conf config = read_or_prompt_for_config("virt-cli.conf");
-            std::cout << "iso folder path: " << config.iso_folder_path << '\n';
-            std::cout << "disk folder path: " << config.disk_folder_path << '\n';
-        }
-    },
-    
+        conf config = read_or_prompt_for_config("virt-cli.conf");
+        std::cout << "iso folder path: " << config.iso_folder_path << '\n';
+        std::cout << "disk folder path: " << config.disk_folder_path << '\n';
+    }},
+    {"vm_menu",  []() 
     {
-        "vm_menu",  []() 
-        {
-            display_menu(vm_menu);
-        }
-    },
-
+        display_menu(vm_menu);
+    }},
+    {"disk_menu", []() 
     {
-        "disk_menu", []() 
-        {
-            display_menu(disk_menu);
-        }
-    },
+        display_menu(disk_menu);
+    }},
 };
-
-int 
-main()
+int main()
 {
     display_menu(main_menu);
     return 0;

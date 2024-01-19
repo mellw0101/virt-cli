@@ -9,7 +9,7 @@ CFLAGS =	-std=c++20 						\
 
 CXXFLAGS = ${CFLAGS}
 
-LIBS = -lcurl
+LIBS = -lcurl -ltorrent-rasterbar -lpthread
 
 LDFLAGS = 	${LIBS} 		\
 			-flto 			\
