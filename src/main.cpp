@@ -296,82 +296,66 @@ void display_menu(const Vec<MenuOption>& options) {
 }
 
 Vec<MenuOption> new_vm = {
-  {"debian", []() 
-  {
+  {"debian", []() {
     create_vm(prompt_for_vm_name(), OS::debian);
   }},
-  {"ubuntu", []() 
-  { 
+  {"ubuntu", []() { 
     std::cout << "You chose sub-option 2.\n"; 
   }},
-  {"arch_linux", []()
-  {
+  {"arch_linux", []() {
     create_arch_vm(prompt_for_vm_name(), OS::arch);
   }}
 };
-Vec<MenuOption> vm_menu = 
-{
-    {"Start VM", []() 
-    {
-        start_vm(prompt_for_vm_name());
-    }},
-    {"Stop VM", []() 
-    {
-        std::cout << "You chose sub-option 2.\n";
-    }},
-    {"Delete VM", []() 
-    {
-        std::cout << "You chose sub-option 3.\n";
-    }},
-    {"New VM", []() 
-    {
-        display_menu(new_vm);
-    }},
+
+Vec<MenuOption> vm_menu = {
+  {"Start VM", []() {
+    start_vm(prompt_for_vm_name());
+  }},
+  {"Stop VM", []() {
+    std::cout << "You chose sub-option 2.\n";
+  }},
+  {"Delete VM", []() {
+    std::cout << "You chose sub-option 3.\n";
+  }},
+  {"New VM", []() {
+    display_menu(new_vm);
+  }},
 };
-Vec<MenuOption> disk_menu = 
-{
-    {
-        "Create new disk", []() 
-        {
-            conf config = read_or_prompt_for_config("virt-cli.conf");
-            Str disk_name;
-            int size_gb;
 
-            std::cout << "Enter the Name to the disk image: ";
-            std::getline(std::cin, disk_name);
+Vec<MenuOption> disk_menu = {
+  {"Create new disk", []() {
+    conf config = read_or_prompt_for_config("virt-cli.conf");
+    Str disk_name;
+    int size_gb;
 
-            std::cout << "Enter the size of the disk image in GB: ";
-            std::cin >> size_gb;
+    std::cout << "Enter the Name to the disk image: ";
+    std::getline(std::cin, disk_name);
 
-            create_qcow2_disk(config.disk_folder_path + "/" + disk_name, size_gb);
-        }
-    },
-    {
-        "Delete disk", []() 
-        {
-            std::cout << "You chose sub-option 2.\n";
-        }
-    },
+    std::cout << "Enter the size of the disk image in GB: ";
+    std::cin >> size_gb;
+
+    create_qcow2_disk(config.disk_folder_path + "/" + disk_name, size_gb);
+  }},
+  {"Delete disk", []() {
+    std::cout << "You chose sub-option 2.\n";
+  }},
 };
-Vec<MenuOption> main_menu = 
-{
-    {"check config", []() 
-    {
-        conf config = read_or_prompt_for_config("virt-cli.conf");
-        std::cout << "iso folder path: " << config.iso_folder_path << '\n';
-        std::cout << "disk folder path: " << config.disk_folder_path << '\n';
-    }},
-    {"vm_menu",  []() 
-    {
-        display_menu(vm_menu);
-    }},
-    {"disk_menu", []() 
-    {
-        display_menu(disk_menu);
-    }},
+
+Vec<MenuOption> main_menu = {
+  {"check config", []() {
+    conf config = read_or_prompt_for_config("virt-cli.conf");
+    std::cout << "iso folder path: " << config.iso_folder_path << '\n';
+    std::cout << "disk folder path: " << config.disk_folder_path << '\n';
+  }},
+  {"vm_menu",  []() {
+    display_menu(vm_menu);
+  }},
+  {"disk_menu", []() {
+    display_menu(disk_menu);
+  }},
 };
 int main()
 {
-    display_menu(main_menu);
-    return 0;
+  display_menu(main_menu);
+  return 0;
 }
