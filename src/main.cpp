@@ -354,8 +354,8 @@ Vec<MenuOption> main_menu = {
     display_menu(disk_menu);
   }},
 };
-int main()
-{
+
+int main() {
   display_menu(main_menu);
   return 0;
 }
