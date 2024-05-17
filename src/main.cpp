@@ -431,10 +431,12 @@ vector<MenuOption> main_menu =
         cout << "iso folder path: " << config.iso_folder_path << '\n';
         cout << "disk folder path: " << config.disk_folder_path << '\n';
     }},
+
     {"vm_menu",  []()
     {
         display_menu(vm_menu);
     }},
+
     {"disk_menu", []()
     {
         display_menu(disk_menu);
